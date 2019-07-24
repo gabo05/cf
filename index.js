@@ -6,14 +6,13 @@ const { createCanvas, loadImage } = require('canvas')
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const ffmpeg = require('fluent-ffmpeg');
 ffmpeg.setFfmpegPath(ffmpegPath);
-const command = ffmpeg();
 
 const port = 3000;
 
 app.use(express.json());
 app.use('/', express.static('public'));
 
-function generate(callback){
+function generate(time, callback){
     const canvas = createCanvas(800, 600);
 
     var c = canvas.getContext('2d'),
@@ -81,7 +80,7 @@ function generate(callback){
         out.on('finish', () =>  true);
         setTimeout(() => {
             frame();
-        }, 100);
+        }, parseInt(time || '100'));
     }
     // start the whole process
     frame();
@@ -103,16 +102,17 @@ app.get('/generate', function(req, res){
         console.log('Finished processing');
     }
     console.log(JSON.stringify(req.query));
-    generate(() => {
+    generate(req.query.time, () => {
+        const command = ffmpeg();
         command
         .on('end', onEnd )
         .on('progress', onProgress)
         .on('error', onError)
         .input('frames/image%d.png')
-        .inputFPS(1/parseInt(req.query.ifps))
+        .inputFPS(1/parseFloat(req.query.ifps || '0.1'))
         .videoCodec('mpeg4')
         .output('frames/video.mp4')
-        .outputFPS(parseInt(req.query.ofps))
+        .outputFPS(parseInt(req.query.ofps || '30'))
         .noAudio()
         .run();
         res.send('generated');
